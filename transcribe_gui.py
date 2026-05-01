@@ -252,6 +252,11 @@ class UnifiedTranscriptionApp(ctk.CTk):
                 res = self.google_client.models.generate_content(model='gemma-4-31b-it', contents=full_prompt).text
             else:
                 res = self.google_client.generate_content(full_prompt).text
+            
+            # Очистка от блоков <thought> (специфично для Gemma 4)
+            import re
+            res = re.sub(r'<thought>.*?</thought>', '', res, flags=re.DOTALL).strip()
+            
             self.analysis_output.delete("1.0", "end")
             self.analysis_output.insert("1.0", res)
             self.log("Анализ завершен!")
