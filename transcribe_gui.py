@@ -23,7 +23,6 @@ project_root = os.path.dirname(os.path.abspath(__file__))
 if project_root not in os.environ["PATH"]:
     os.environ["PATH"] = project_root + os.pathsep + os.environ["PATH"]
 
-# Настройка темы
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
@@ -32,7 +31,7 @@ class UnifiedTranscriptionApp(ctk.CTk):
         super().__init__()
 
         self.title("Sales Intelligence Pro (Groq + Gemma 4)")
-        self.geometry("1000x850")
+        self.geometry("1000x950") # Увеличил высоту для нового поля
 
         self.config_path = "config.json"
         self.groq_key_path = "api_kay_groc.md"
@@ -134,13 +133,32 @@ class UnifiedTranscriptionApp(ctk.CTk):
     def setup_analysis_tab(self):
         tab = self.tabview.tab("2. Аналитика LLM")
         tab.grid_columnconfigure(0, weight=1)
+        
+        # Кнопка загрузки
         ctk.CTkButton(tab, text="ЗАГРУЗИТЬ ТЕКСТ ИЗ ФАЙЛА .TXT", command=self.load_text_file, fg_color="#2b719e").pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(tab, text="Промпт для Gemma 4:", font=ctk.CTkFont(weight="bold")).pack(padx=10, anchor="w")
-        self.system_prompt = ctk.CTkTextbox(tab, height=150)
+        
+        # Основной системный промпт
+        ctk.CTkLabel(tab, text="Основной промпт (из файла):", font=ctk.CTkFont(weight="bold")).pack(padx=10, anchor="w")
+        self.system_prompt = ctk.CTkTextbox(tab, height=120)
         self.system_prompt.pack(fill="x", padx=10, pady=5)
-        self.btn_analyze = ctk.CTkButton(tab, text="ЗАПУСТИТЬ АНАЛИЗ GEMMA 4", height=50, fg_color="#4285F4", command=self.start_analysis_thread)
-        self.btn_analyze.pack(fill="x", padx=10, pady=15)
-        self.analysis_output = ctk.CTkTextbox(tab, height=350)
+
+        # ДОПОЛНИТЕЛЬНЫЕ ВОПРОСЫ
+        ctk.CTkLabel(tab, text="Дополнительные вопросы к этому звонку (необязательно):", font=ctk.CTkFont(weight="bold"), text_color="#AAB7B8").pack(padx=10, pady=(10,0), anchor="w")
+        self.custom_questions = ctk.CTkTextbox(tab, height=60, border_color="#5D6D7E", border_width=1)
+        self.custom_questions.pack(fill="x", padx=10, pady=5)
+        self.custom_questions.insert("1.0", "") # Пусто по умолчанию
+
+        # Кнопки действия для анализа
+        self.analysis_btn_frame = ctk.CTkFrame(tab, fg_color="transparent")
+        self.analysis_btn_frame.pack(fill="x", padx=10, pady=10)
+
+        self.btn_analyze = ctk.CTkButton(self.analysis_btn_frame, text="ЗАПУСТИТЬ ПОЛНЫЙ АНАЛИЗ GEMMA 4", height=50, fg_color="#4285F4", command=self.start_analysis_thread)
+        self.btn_analyze.pack(side="left", fill="x", expand=True, padx=(0, 5))
+
+        self.btn_save_report = ctk.CTkButton(self.analysis_btn_frame, text="СОХРАНИТЬ ОТЧЕТ", height=50, fg_color="#2b719e", command=self.save_report)
+        self.btn_save_report.pack(side="left", fill="x", expand=True, padx=(5, 0))
+
+        self.analysis_output = ctk.CTkTextbox(tab, height=400)
         self.analysis_output.pack(fill="both", expand=True, padx=10, pady=10)
 
     def setup_settings_tab(self):
@@ -212,21 +230,13 @@ class UnifiedTranscriptionApp(ctk.CTk):
         try:
             current_audio = self.audio_path
             file_size = os.path.getsize(self.audio_path) / (1024 * 1024)
-            
             if file_size > 25:
-                self.log(f"Файл {file_size:.1f}MB больше лимита. Сжимаю...")
-                temp_audio = os.path.join(tempfile.gettempdir(), "compressed_audio.mp3")
-                cmd = ["ffmpeg", "-y", "-i", self.audio_path, "-vn", "-ar", "16000", "-ac", "1", "-b:a", "64k", temp_audio]
-                subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                self.log("Сжатие файла...")
+                temp_audio = os.path.join(tempfile.gettempdir(), "compressed.mp3")
+                subprocess.run(["ffmpeg", "-y", "-i", self.audio_path, "-vn", "-ar", "16000", "-ac", "1", "-b:a", "64k", temp_audio], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
                 current_audio = temp_audio
-                self.log(f"Сжато до {os.path.getsize(temp_audio)/(1024*1024):.1f}MB")
-
-            self.log("Отправка в Groq Cloud...")
             with open(current_audio, "rb") as f:
-                res = self.groq_client.audio.transcriptions.create(
-                    file=(os.path.basename(current_audio), f.read()),
-                    model="whisper-large-v3", response_format="text", language="ru"
-                )
+                res = self.groq_client.audio.transcriptions.create(file=(os.path.basename(current_audio), f.read()), model="whisper-large-v3", response_format="text", language="ru")
             self.text_output.delete("1.0", "end")
             self.text_output.insert("1.0", res)
             self.log("Транскрибация завершена!")
@@ -238,8 +248,7 @@ class UnifiedTranscriptionApp(ctk.CTk):
 
     def start_analysis_thread(self):
         if not self.google_client: return
-        text = self.text_output.get("1.0", "end").strip()
-        if not text: return
+        if not self.text_output.get("1.0", "end").strip(): return
         self.btn_analyze.configure(state="disabled")
         self.tabview.set("Логи")
         threading.Thread(target=self.run_analysis).start()
@@ -247,13 +256,22 @@ class UnifiedTranscriptionApp(ctk.CTk):
     def run_analysis(self):
         try:
             self.log("Gemma 4 анализирует...")
-            full_prompt = f"{self.system_prompt.get('1.0', 'end').strip()}\n\nТЕКСТ:\n{self.text_output.get('1.0', 'end').strip()}"
-            if not LEGACY_SDK:
-                res = self.google_client.models.generate_content(model='gemma-4-31b-it', contents=full_prompt).text
-            else:
-                res = self.google_client.generate_content(full_prompt).text
+            base_prompt = self.system_prompt.get("1.0", "end").strip()
+            extra_questions = self.custom_questions.get("1.0", "end").strip()
+            trans_text = self.text_output.get("1.0", "end").strip()
             
-            # Очистка от блоков <thought> (специфично для Gemma 4)
+            final_prompt = base_prompt
+            if extra_questions:
+                final_prompt += f"\n\nДОПОЛНИТЕЛЬНО ОТВЕТЬ НА ВОПРОСЫ:\n{extra_questions}"
+            
+            final_prompt += f"\n\nТЕКСТ ДЛЯ АНАЛИЗА:\n{trans_text}"
+            
+            if not LEGACY_SDK:
+                res = self.google_client.models.generate_content(model='gemma-4-31b-it', contents=final_prompt).text
+            else:
+                res = self.google_client.generate_content(final_prompt).text
+            
+            # Чистка от thought
             import re
             res = re.sub(r'<thought>.*?</thought>', '', res, flags=re.DOTALL).strip()
             
@@ -271,6 +289,16 @@ class UnifiedTranscriptionApp(ctk.CTk):
         if fn:
             with open(fn, "w", encoding="utf-8") as f: f.write(text)
             messagebox.showinfo("Успех", "Текст сохранен!")
+
+    def save_report(self):
+        text = self.analysis_output.get("1.0", "end").strip()
+        if not text:
+            messagebox.showwarning("Внимание", "Нет отчета для сохранения!")
+            return
+        fn = filedialog.asksaveasfilename(defaultextension=".md", filetypes=[("Markdown", "*.md"), ("Text", "*.txt")])
+        if fn:
+            with open(fn, "w", encoding="utf-8") as f: f.write(text)
+            messagebox.showinfo("Успех", "Отчет успешно сохранен!")
 
     def copy_logs(self):
         self.clipboard_clear(); self.clipboard_append(self.log_output.get("1.0", "end"))

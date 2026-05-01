@@ -1,4 +1,8 @@
 @echo off
+echo --- Cleaning old build files ---
+if exist build rd /s /q build
+if exist dist rd /s /q dist
+
 echo --- Starting Build Process ---
 pip install pyinstaller
 
