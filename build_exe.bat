@@ -14,8 +14,12 @@ pyinstaller --noconfirm --onedir --windowed ^
  --add-data "analytics_prompt.md;." ^
  "transcribe_gui.py"
 
+echo --- Copying FFmpeg binaries ---
+copy ffmpeg.exe dist\SalesIntelligencePro\
+copy ffprobe.exe dist\SalesIntelligencePro\
+
 echo.
 echo --- Build Complete! ---
 echo Your EXE is located in the "dist/SalesIntelligencePro" folder.
-echo Don't forget to copy ffmpeg.exe and ffprobe.exe into that folder!
+echo All necessary files (FFmpeg, Prompt) have been included.
 pause

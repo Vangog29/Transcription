@@ -18,8 +18,12 @@ except ImportError:
     except ImportError:
         genai = None
 
-# Настройка пути для локального FFmpeg
-project_root = os.path.dirname(os.path.abspath(__file__))
+# Определение корневой папки для EXE и скрипта
+if getattr(sys, 'frozen', False):
+    project_root = os.path.dirname(sys.executable)
+else:
+    project_root = os.path.dirname(os.path.abspath(__file__))
+
 if project_root not in os.environ["PATH"]:
     os.environ["PATH"] = project_root + os.pathsep + os.environ["PATH"]
 
@@ -33,10 +37,10 @@ class UnifiedTranscriptionApp(ctk.CTk):
         self.title("Sales Intelligence Pro (Groq + Gemma 4)")
         self.geometry("1000x950") # Увеличил высоту для нового поля
 
-        self.config_path = "config.json"
-        self.groq_key_path = "api_kay_groc.md"
-        self.google_key_path = "api_kay_google.md"
-        self.prompt_path = "analytics_prompt.md"
+        self.config_path = os.path.join(project_root, "config.json")
+        self.groq_key_path = os.path.join(project_root, "api_kay_groc.md")
+        self.google_key_path = os.path.join(project_root, "api_kay_google.md")
+        self.prompt_path = os.path.join(project_root, "analytics_prompt.md")
         
         self.load_config()
 

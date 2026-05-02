@@ -5,3 +5,43 @@
 /Хмара1 неруд.wav
 /Хмара2 РЕКУНОВ.txt
 /Хмара2 РЕКУНОВ.wav
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv/
+env/
+venv/
+ENV/
+
+# Build and Distribution
+build/
+dist/
+*.spec
+*.exe
+
+# Configuration and Keys (CRITICAL)
+config.json
+api_kay_*.md
+api_kay_*.txt
+
+# FFmpeg (Binaries)
+ffmpeg.exe
+ffprobe.exe
+
+# Local Test Data
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.docx
+*.txt
+!INSTRUCTIONS.md
+!BUILD_GUIDE.md
+!analytics_prompt.md
+*.log
+
+# IDEs
+.vscode/
+.idea/
