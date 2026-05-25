@@ -41,6 +41,7 @@ class UnifiedTranscriptionApp(ctk.CTk):
         self.groq_key_path = os.path.join(project_root, "api_kay_groc.md")
         self.google_key_path = os.path.join(project_root, "api_kay_google.md")
         self.prompt_path = os.path.join(project_root, "analytics_prompt.md")
+        self.proxy_url = ""
         
         self.load_config()
 
@@ -79,17 +80,42 @@ class UnifiedTranscriptionApp(ctk.CTk):
                     self.groq_key_path = config.get("groq_key_path", self.groq_key_path)
                     self.google_key_path = config.get("google_key_path", self.google_key_path)
                     self.prompt_path = config.get("prompt_path", self.prompt_path)
+                    self.proxy_url = config.get("proxy_url", "")
             except: pass
 
     def save_config(self):
-        config = {"groq_key_path": self.groq_key_path, "google_key_path": self.google_key_path, "prompt_path": self.prompt_path}
+        config = {
+            "groq_key_path": self.groq_key_path,
+            "google_key_path": self.google_key_path,
+            "prompt_path": self.prompt_path,
+            "proxy_url": self.proxy_url
+        }
         with open(self.config_path, "w") as f: json.dump(config, f)
 
     def init_api(self):
+        import httpx
+        
+        # Apply environment variables for general proxy compatibility
+        if self.proxy_url:
+            os.environ["HTTP_PROXY"] = self.proxy_url
+            os.environ["HTTPS_PROXY"] = self.proxy_url
+            os.environ["ALL_PROXY"] = self.proxy_url
+            self.log(f"Настройка прокси: {self.proxy_url}")
+        else:
+            os.environ.pop("HTTP_PROXY", None)
+            os.environ.pop("HTTPS_PROXY", None)
+            os.environ.pop("ALL_PROXY", None)
+
+        http_client = httpx.Client(proxy=self.proxy_url) if self.proxy_url else None
+
         if os.path.exists(self.groq_key_path):
             try:
                 with open(self.groq_key_path, "r") as f:
-                    self.groq_client = Groq(api_key=f.read().strip())
+                    api_key = f.read().strip()
+                    if http_client:
+                        self.groq_client = Groq(api_key=api_key, http_client=http_client)
+                    else:
+                        self.groq_client = Groq(api_key=api_key)
                     self.log("Groq API загружен.")
             except Exception as e: self.log(f"Ошибка Groq: {e}")
         
@@ -98,8 +124,21 @@ class UnifiedTranscriptionApp(ctk.CTk):
                 with open(self.google_key_path, "r") as f:
                     api_key = f.read().strip()
                     if not LEGACY_SDK:
-                        self.google_client = genai.Client(api_key=api_key)
-                        self.log("Gemma 4 готова.")
+                        if self.proxy_url:
+                            try:
+                                from google.genai import types
+                                http_options = types.HttpOptions(
+                                    client_args={"transport": httpx.HTTPTransport(proxy=self.proxy_url)},
+                                    async_client_args={"transport": httpx.AsyncHTTPTransport(proxy=self.proxy_url)}
+                                )
+                                self.google_client = genai.Client(api_key=api_key, http_options=http_options)
+                                self.log("Gemma 4 готова (через прокси).")
+                            except Exception as proxy_err:
+                                self.log(f"Ошибка прокси Google SDK: {proxy_err}. Прямое подключение.")
+                                self.google_client = genai.Client(api_key=api_key)
+                        else:
+                            self.google_client = genai.Client(api_key=api_key)
+                            self.log("Gemma 4 готова.")
                     else:
                         genai.configure(api_key=api_key)
                         self.google_client = genai.GenerativeModel('gemma-4-31b-it')
@@ -172,7 +211,18 @@ class UnifiedTranscriptionApp(ctk.CTk):
         self.create_setting_row(tab, "Ключ Groq:", "groq")
         self.create_setting_row(tab, "Ключ Google:", "google")
         self.create_setting_row(tab, "Промпт Анализа:", "prompt")
+        
+        ctk.CTkLabel(tab, text="Сетевые настройки", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(20, 10))
+        self.create_proxy_row(tab)
+        
         ctk.CTkButton(tab, text="СОХРАНИТЬ И ПРИМЕНИТЬ", height=45, fg_color="green", command=self.apply_settings).pack(pady=40)
+
+    def create_proxy_row(self, parent):
+        frame = ctk.CTkFrame(parent); frame.pack(fill="x", padx=20, pady=5)
+        ctk.CTkLabel(frame, text="Прокси:", width=120).pack(side="left", padx=10)
+        self.entry_proxy = ctk.CTkEntry(frame, placeholder_text="например: socks4://127.0.0.1:1080")
+        self.entry_proxy.insert(0, self.proxy_url)
+        self.entry_proxy.pack(side="left", fill="x", expand=True, padx=10)
 
     def create_setting_row(self, parent, label, attr_type):
         frame = ctk.CTkFrame(parent); frame.pack(fill="x", padx=20, pady=5)
@@ -193,6 +243,7 @@ class UnifiedTranscriptionApp(ctk.CTk):
         self.groq_key_path = self.entry_groq_path.get()
         self.google_key_path = self.entry_google_path.get()
         self.prompt_path = self.entry_prompt_path.get()
+        self.proxy_url = self.entry_proxy.get().strip()
         self.save_config(); self.init_api(); self.load_initial_prompt()
         messagebox.showinfo("Инфо", "Настройки сохранены!")
 
