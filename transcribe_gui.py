@@ -53,8 +53,24 @@ class UnifiedTranscriptionApp(ctk.CTk):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
 
-        self.label_title = ctk.CTkLabel(self, text="Sales Transcription & Analytics PRO", font=ctk.CTkFont(size=26, weight="bold"))
-        self.label_title.grid(row=0, column=0, padx=20, pady=20)
+        # Верхняя панель для заголовка и статуса
+        self.top_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.top_frame.grid(row=0, column=0, padx=20, pady=20, sticky="ew")
+
+        self.label_title = ctk.CTkLabel(self.top_frame, text="Sales Transcription & Analytics PRO", font=ctk.CTkFont(size=26, weight="bold"))
+        self.label_title.pack(side="left")
+
+        self.analysis_status_badge = ctk.CTkLabel(
+            self.top_frame,
+            text="Анализ: не запущен",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="#FFFFFF",
+            fg_color="#6B7280",
+            corner_radius=8,
+            height=30,
+            width=180
+        )
+        self.analysis_status_badge.pack(side="right")
 
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
@@ -290,6 +306,37 @@ class UnifiedTranscriptionApp(ctk.CTk):
         self.label_status.configure(text=f"Статус: {message[:40]}")
         self.update_idletasks()
 
+    def update_analysis_status(self, status):
+        """
+        Thread-safe wrapper to update the analysis status badge.
+        """
+        self.after(0, lambda: self._update_analysis_status_ui(status))
+
+    def _update_analysis_status_ui(self, status):
+        """
+        Updates the analysis status badge UI element.
+        """
+        if status == "idle":
+            self.analysis_status_badge.configure(
+                text="Анализ: не запущен",
+                fg_color="#6B7280"
+            )
+        elif status == "processing":
+            self.analysis_status_badge.configure(
+                text="Анализ: в процессе...",
+                fg_color="#F59E0B"
+            )
+        elif status == "completed":
+            self.analysis_status_badge.configure(
+                text="Анализ: завершен",
+                fg_color="#10B981"
+            )
+        elif status == "error":
+            self.analysis_status_badge.configure(
+                text="Анализ: ошибка",
+                fg_color="#EF4444"
+            )
+
     def browse_file(self):
         fn = filedialog.askopenfilename(filetypes=[("Audio", "*.wav *.mp3 *.m4a *.flac"), ("All", "*.*")])
         if fn:
@@ -303,11 +350,13 @@ class UnifiedTranscriptionApp(ctk.CTk):
             with open(fn, "r", encoding="utf-8") as f:
                 self.text_output.delete("1.0", "end")
                 self.text_output.insert("1.0", f.read())
+                self.update_analysis_status("idle")
                 self.tabview.set("1. Транскрибация")
 
     def start_transcription_thread(self):
         if not self.groq_client: return
         self.btn_start.configure(state="disabled")
+        self.update_analysis_status("idle")
         self.tabview.set("Логи")
         threading.Thread(target=self.run_transcription).start()
 
@@ -336,6 +385,7 @@ class UnifiedTranscriptionApp(ctk.CTk):
         if not self.google_client: return
         if not self.text_output.get("1.0", "end").strip(): return
         self.btn_analyze.configure(state="disabled")
+        self.update_analysis_status("processing")
         self.tabview.set("Логи")
         threading.Thread(target=self.run_analysis).start()
 
@@ -364,9 +414,14 @@ class UnifiedTranscriptionApp(ctk.CTk):
             self.analysis_output.delete("1.0", "end")
             self.analysis_output.insert("1.0", res)
             self.log("Анализ завершен!")
+            self.update_analysis_status("completed")
             self.tabview.set("2. Аналитика LLM")
-        except Exception as e: self.log(f"Ошибка LLM: {e}")
-        finally: self.btn_analyze.configure(state="normal")
+            self.after(0, lambda: messagebox.showinfo("Анализ завершен", "Анализ звонка успешно завершен!"))
+        except Exception as e:
+            self.log(f"Ошибка LLM: {e}")
+            self.update_analysis_status("error")
+        finally:
+            self.btn_analyze.configure(state="normal")
 
     def save_text(self):
         text = self.text_output.get("1.0", "end").strip()
