@@ -42,8 +42,10 @@ class UnifiedTranscriptionApp(ctk.CTk):
         self.google_key_path = os.path.join(project_root, "api_kay_google.md")
         self.prompt_path = os.path.join(project_root, "analytics_prompt.md")
         self.proxy_url = ""
+        self.appearance_mode = "dark"
         
         self.load_config()
+        ctk.set_appearance_mode(self.appearance_mode)
 
         self.groq_client = None
         self.google_client = None
@@ -81,6 +83,7 @@ class UnifiedTranscriptionApp(ctk.CTk):
                     self.google_key_path = config.get("google_key_path", self.google_key_path)
                     self.prompt_path = config.get("prompt_path", self.prompt_path)
                     self.proxy_url = config.get("proxy_url", "")
+                    self.appearance_mode = config.get("appearance_mode", "dark")
             except: pass
 
     def save_config(self):
@@ -88,7 +91,8 @@ class UnifiedTranscriptionApp(ctk.CTk):
             "groq_key_path": self.groq_key_path,
             "google_key_path": self.google_key_path,
             "prompt_path": self.prompt_path,
-            "proxy_url": self.proxy_url
+            "proxy_url": self.proxy_url,
+            "appearance_mode": self.appearance_mode
         }
         with open(self.config_path, "w") as f: json.dump(config, f)
 
@@ -214,6 +218,9 @@ class UnifiedTranscriptionApp(ctk.CTk):
         
         ctk.CTkLabel(tab, text="Сетевые настройки", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(20, 10))
         self.create_proxy_row(tab)
+
+        ctk.CTkLabel(tab, text="Оформление", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(20, 10))
+        self.create_theme_row(tab)
         
         ctk.CTkButton(tab, text="СОХРАНИТЬ И ПРИМЕНИТЬ", height=45, fg_color="green", command=self.apply_settings).pack(pady=40)
 
@@ -223,6 +230,29 @@ class UnifiedTranscriptionApp(ctk.CTk):
         self.entry_proxy = ctk.CTkEntry(frame, placeholder_text="например: socks4://127.0.0.1:1080")
         self.entry_proxy.insert(0, self.proxy_url)
         self.entry_proxy.pack(side="left", fill="x", expand=True, padx=10)
+
+    def create_theme_row(self, parent):
+        frame = ctk.CTkFrame(parent); frame.pack(fill="x", padx=20, pady=5)
+        ctk.CTkLabel(frame, text="Тема оформления:", width=120).pack(side="left", padx=10)
+        
+        self.theme_options = ["Темная", "Светлая", "Системная"]
+        self.theme_mapping = {"Темная": "dark", "Светлая": "light", "Системная": "system"}
+        self.reverse_theme_mapping = {"dark": "Темная", "light": "Светлая", "system": "Системная"}
+        
+        initial_value = self.reverse_theme_mapping.get(self.appearance_mode, "Темная")
+        
+        self.option_theme = ctk.CTkOptionMenu(
+            frame, 
+            values=self.theme_options,
+            command=self.change_appearance_mode
+        )
+        self.option_theme.set(initial_value)
+        self.option_theme.pack(side="left", padx=10)
+
+    def change_appearance_mode(self, selected_theme):
+        mode = self.theme_mapping.get(selected_theme, "dark")
+        self.appearance_mode = mode
+        ctk.set_appearance_mode(mode)
 
     def create_setting_row(self, parent, label, attr_type):
         frame = ctk.CTkFrame(parent); frame.pack(fill="x", padx=20, pady=5)
@@ -244,6 +274,7 @@ class UnifiedTranscriptionApp(ctk.CTk):
         self.google_key_path = self.entry_google_path.get()
         self.prompt_path = self.entry_prompt_path.get()
         self.proxy_url = self.entry_proxy.get().strip()
+        self.appearance_mode = self.theme_mapping.get(self.option_theme.get(), "dark")
         self.save_config(); self.init_api(); self.load_initial_prompt()
         messagebox.showinfo("Инфо", "Настройки сохранены!")
 
