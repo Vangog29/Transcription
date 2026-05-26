@@ -1,64 +1,103 @@
 # Sales Intelligence Pro (Groq + Gemma 4)
 
-Professional tool for automated transcription of sales calls using **Groq (Whisper-large-v3)** and intelligent quality assurance analytics via **Google's Gemma 4 31B** model.
+Professional & Portable Quality Assurance Tool for Sales Teams.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+**Sales Intelligence Pro** — это профессиональное настольное приложение с графическим интерфейсом на базе `CustomTkinter`, предназначенное для автоматического аудита и контроля качества (QA) телефонных звонков менеджеров по продажам. 
 
-## 🚀 Key Features
-- **High-Performance Transcription**: Uses Groq API for near-instant speech-to-text.
-- **AI Analytics**: Intelligent call analysis, scoring, and insight extraction using Google's Gemma 4.
-- **Smart Compression**: Automatically compresses large audio files (>25MB) to meet API limits without losing quality.
-- **Portable & User-Friendly**: Modern GUI built with CustomTkinter, can be compiled into a single `.exe`.
-- **Flexible Configuration**: Externalize your system prompts and API keys for security and customization.
+Инструмент объединяет сверхбыструю транскрибацию аудиозаписей через API **Groq (Whisper-large-v3)** и глубокую смысловую аналитику текста с помощью модели нового поколения **Google Gemma 4 (31B)**.
 
-## 🛠 Tech Stack
-- **Backend**: Python 3.10+
-- **Transcription**: Groq SDK (Whisper-large-v3)
-- **Analytics**: Google GenAI SDK (Gemma-4-31b-it)
-- **GUI**: CustomTkinter
-- **Audio Processing**: FFmpeg
+---
 
-## 📦 Installation & Setup
+## 🚀 Ключевые возможности
 
-### 1. Requirements
-- Python 3.10 or higher
-- FFmpeg (included in release or must be in PATH)
-- API Keys for [Groq](https://console.groq.com/) and [Google AI Studio](https://aistudio.google.com/)
+- **Высокопроизводительная транскрибация**: Преобразование речи в текст за считанные секунды с помощью модели `whisper-large-v3` от Groq.
+- **Интеллектуальный QA-аудит (Gemma 4)**: Автоматическая проверка звонка по настраиваемому чек-листу (приветствие, квалификация клиента, выявление потребностей, презентация, работа с возражениями, закрытие сделки).
+- **Динамический анализ Soft Skills**: ИИ оценивает тон разговора, вовлеченность клиента, чистоту речи менеджера и логику ведения диалога.
+- **Индивидуальные вопросы к звонку**: Возможность ввести дополнительные точечные вопросы прямо перед запуском анализа.
+- **Автоматическое сжатие аудио**: Если файл весит больше 25 МБ, программа автоматически сжимает его с помощью встроенных утилит `FFmpeg` для обхода ограничений API, сохраняя при этом разборчивость речи.
+- **Индикатор статуса в реальном времени**: Цветовой статус-бейдж в шапке приложения наглядно отображает состояние анализа:
+  - `Анализ: не запущен` (Серый)
+  - `Анализ: в процессе...` (Оранжевый)
+  - `Анализ: завершен` (Зеленый)
+  - `Анализ: ошибка` (Красный)
+- **Сетевая гибкость (Поддержка прокси)**: Возможность указать HTTP, SOCKS4 или SOCKS5 прокси прямо во вкладке настроек для стабильной работы с API Groq и Google из РФ или из-под корпоративного брандмауэра.
+- **Современный GUI и Темы оформления**: Адаптивный графический интерфейс с поддержкой **Темной**, **Светлой** и **Системной** тем оформления (выбор сохраняется автоматически в `config.json`).
+- **Автономный логгер**: Вкладка «Логи» позволяет отслеживать технические детали выполнения запросов и копировать логи в один клик.
 
-### 2. Local Setup
+---
+
+## 🛠 Стек технологий
+
+* **GUI-фреймворк**: [CustomTkinter](https://github.com/tomsimonson/customtkinter)
+* **API Транскрибации**: Groq SDK (`whisper-large-v3`)
+* **API Аналитики**: Google GenAI SDK (`gemma-4-31b-it`)
+* **Обработка аудио**: FFmpeg и FFprobe
+* **Подключение**: `httpx` (с поддержкой прокси), `python-socks`
+* **Компиляция**: PyInstaller
+
+---
+
+## 📦 Быстрый старт и установка
+
+### 1. Требования к окружению
+* Python версии **3.10** или выше.
+* Утилиты `ffmpeg.exe` и `ffprobe.exe` (для автоматического сжатия аудио). Они должны находиться либо в системном `PATH`, либо непосредственно в корневой папке проекта.
+
+### 2. Клонирование и установка зависимостей
 ```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/SalesIntelligencePro.git
-cd SalesIntelligencePro
+# Клонируйте репозиторий
+git clone https://github.com/Vangog29/Transcription.git
+cd Transcription
 
-# Create and activate virtual environment
+# Создайте и активируйте виртуальное окружение
 python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+# Для Windows:
+.venv\Scripts\activate
+# Для Linux/macOS:
+source .venv/bin/activate
 
-# Install dependencies
+# Установите необходимые библиотеки
 pip install -r requirements.txt
 ```
 
-### 3. API Configuration
-Create two files (or use the Settings tab in the app):
-- `api_kay_groc.md`: Paste your Groq API key.
-- `api_kay_google.md`: Paste your Google API key.
+### 3. Конфигурация API ключей
+Приложение считывает API-ключи из внешних файлов (их также можно настроить прямо в интерфейсе на вкладке **«Настройки»**):
+1. Создайте в корневой директории файл `api_kay_groc.md` и вставьте туда ваш API-ключ Groq.
+2. Создайте файл `api_kay_google.md` и вставьте туда ваш API-ключ Google AI Studio.
+3. Системный промпт для оценки звонков загружается из файла `analytics_prompt.md`. Вы можете отредактировать этот файл под стандарты вашей компании.
 
-## 🔨 Building Executable
-To create a standalone `.exe` file, use the provided build script:
+### 4. Запуск приложения
 ```bash
+python transcribe_gui.py
+```
+
+---
+
+## 🔨 Сборка в автономный `.exe`
+
+Для создания портативной версии приложения под Windows, которая будет работать без установленного Python, запустите готовый скрипт сборки:
+
+```cmd
 build_exe.bat
 ```
-The output will be in the `dist/` folder.
 
-## 📄 Documentation
-- [User Guide (RU)](INSTRUCTIONS.md) - How to use the application.
-- [Build Guide (RU)](BUILD_GUIDE.md) - Technical details for compilation.
+Скрипт автоматически:
+1. Очистит папки прошлых сборок (`build/` и `dist/`).
+2. Соберет приложение с помощью `PyInstaller`, включая все необходимые ресурсы, библиотеки (CustomTkinter, Groq, Google) и базовый промпт.
+3. Скопирует исполняемые файлы `ffmpeg.exe` и `ffprobe.exe` в папку с программой.
 
-## 🤝 Contributing
-Contributions, issues, and feature requests are welcome!
+Готовая сборка будет находиться в директории `dist/SalesIntelligencePro/`.
 
-## 📜 License
-This project is [MIT](LICENSE) licensed.
+---
+
+## 📄 Дополнительная документация
+
+Для более подробного ознакомления с возможностями программы обратитесь к файлам документации:
+- 📖 [Инструкция пользователя (RU)](INSTRUCTIONS.md) — детальное руководство по использованию всех вкладок, настройки тем и прокси.
+- ⚙️ [Руководство по сборке (RU)](BUILD_GUIDE.md) — подробности компиляции и переносимости приложения.
+
+---
+
+## 📜 Лицензия
+
+Данный проект распространяется под лицензией [MIT](LICENSE).
